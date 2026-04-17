@@ -13,3 +13,19 @@ module report_adders (
     assign y3 = a * 2;
 
 endmodule
+
+
+
+
+
+
+/*
+module report_adders (
+    input [7:0] x,
+    input [7:0] y,
+    output [7:0] z
+);
+    localparam MASK = 8'hF0;
+    assign z = (x & MASK) | (y & ~MASK);
+endmodule
+*/

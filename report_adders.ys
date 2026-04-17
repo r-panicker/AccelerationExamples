@@ -9,7 +9,8 @@ synth -top report_adders -run coarse
 
 # 3. Filter for specific components and report
 # This selects all cells of type '$add' and '$mulruns stat on only that selection
-stat -width t:$add t:$mul t:$alu
-# stat          # no filtering
+stat -width t:$add t:$alu
+# stat -width t:$add t:$mul t:$alu
+# stat -width         # no filtering
 
 ## run it with yosys -s report_adders.ys
