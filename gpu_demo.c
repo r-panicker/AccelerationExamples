@@ -181,8 +181,7 @@ int main() {
     printf("Matrix Multiplication Speedup: %.2fx\n", cpu_matmul_time / gpu_matmul_time);
     printf("Vector Multiplication Speedup: %.2fx\n", cpu_vecmul_time / gpu_vecmul_time);
 
-    printf("\n✅ FAIR COMPARISON: Both operations now use MULTIPLICATION\n");
-    printf("\nMatrix multiplication still achieves far higher speedup because it is COMPUTE BOUND (O(N³))\n");
+    printf("\nMatrix multiplication achieves far higher speedup because it is COMPUTE BOUND (O(N³))\n");
     printf("while elementwise vector operations remain MEMORY BOUND (O(N)) regardless of which arithmetic operator is used.\n");
     
     // Cleanup
