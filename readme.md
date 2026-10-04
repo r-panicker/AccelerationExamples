@@ -52,15 +52,36 @@ gcc -o coalesced_vs_non_coalesced coalesced_vs_non_coalesced.c -lOpenCL
 Compares row-major vs column-major traversal of a 2D array to demonstrate cache locality effects. Row-major order accesses consecutive memory locations, while column-major order strides through memory.
 
 **Description:**
-This simple example creates an N×N matrix and times two traversal patterns: row-major (i then j loops) and column-major (j then i loops). Row-major order benefits from CPU cache prefetching since consecutive memory addresses are accessed sequentially. Column-major traversal with stride N often results in cache misses due to non-sequential access patterns.
+This simple example creates an N×N matrix and times two traversal patterns: row-major (i then j loops) and column-major (j then i loops). Row-major order benefits from CPU cache prefetching since consecutive memory addresses are accessed sequentially. Column-major traversal with stride N often results in cache misses due to non-sequential access patterns. The traversal pattern is selectable with a command line switch, so each pattern can be benchmarked separately (e.g. under `perf`), while running with no switch still executes both. Each traversal is timed `REPS = 100` times (compile-time constant in the source) and only the averaged time is printed.
 
 **How to Run:**
 ```bash
 # Compile
 gcc -o col_row_maj_cache col_row_maj_cache.c -lrt
+# (add -O2 for meaningful timings)
+gcc -O2 -o col_row_maj_cache col_row_maj_cache.c -lrt
 
-# Run with default N=3000
+# Run both traversals (default behaviour, N=3000)
 ./col_row_maj_cache
+
+# Run only one traversal (row-major -r / column-major -c)
+./col_row_maj_cache -r
+./col_row_maj_cache -c
+
+# Output is the averaged time over REPS (=100) timed runs, e.g.
+#   Row-major average time: 0.012 sec
+#   Column-major average time: 0.070 sec
+
+# Optional matrix size (default N=3000); a bare number works too
+./col_row_maj_cache -n 5000
+./col_row_maj_cache -c 5000
+
+# Compare cache misses of the two access patterns
+perf stat -e cache-misses,cache-references ./col_row_maj_cache -r
+perf stat -e cache-misses,cache-references ./col_row_maj_cache -c
+
+# Other switches
+./col_row_maj_cache --help
 ```
 
 ---
@@ -172,6 +193,38 @@ This requires Vitis HLS toolchain for FPGA synthesis:
 
 ---
 
+## 10. dff_infer.v / dff_infer_keep.v
+
+**Summary:**
+Pure Verilog-2001 `always @(posedge clk)` block with two 8-bit registers (`reg_a`, `reg_b`) that are both loaded from the same `data_in`, with a synchronous `reset` and an `enable`. Shows how many flip-flops Yosys infers and how it optimizes duplicate registers.
+
+**Description:**
+The RTL implies **16 flip-flops** (2 registers x 8 bits). Yosys reports exactly that right after `proc` (`$dff_8 x 2`), but after optimization it merges the two registers into one (`$sdffe_8 x 1` -> `$_SDFFE_PP0P_ x 8` -> `FDRE x 8`), i.e. **8 flip-flops**, because `reset` always loads `8'h00` into both and `enable` always loads the same `data_in` into both, so the two registers are always identical. `dff_infer_keep.v` is the same design with `(* keep *)` on the `always` block, which blocks the merge and keeps all 16 flip-flops (in Yosys 0.33 the attribute must be on the `always` block; a `(* keep *)` on the declaration alone is not enough).
+
+**How to Run:**
+```bash
+# Using Yosys
+yosys -s dff_infer.ys
+```
+
+---
+
+## 11. dff_infer.ys
+
+**Summary:**
+Yosys script that reports the flip-flop count of `dff_infer.v` at five different stages of synthesis.
+
+**Description:**
+The script loads the design and prints `stat -width` after (1) `proc` only -> `$dff_8 x 2` = 16 flip-flops, (2) `proc; opt` -> `$sdffe_8 x 1` = 8 flip-flops (reset/enable folded into the FF cell, identical registers merged), (3) generic full `synth` -> `$_SDFFE_PP0P_ x 8` = 8 flip-flops, (4) `synth_xilinx -family xc7` -> `FDRE x 8` plus 1 `BUFG` and 0 LUTs = 8 flip-flops, and (5) the `(* keep *)` variant `dff_infer_keep.v` -> `$_SDFFE_PP0P_ x 16` = 16 flip-flops. `stat -width` prints the cell width as an `_8` suffix, so cells x width = flip-flop count.
+
+**How to Run:**
+```bash
+# Run with Yosys
+yosys -s dff_infer.ys
+```
+
+---
+
 ## Quick Reference Table
 
 | File | Language | Purpose | Dependencies |
@@ -184,6 +237,9 @@ This requires Vitis HLS toolchain for FPGA synthesis:
 | vadd_comparison.cpp | C++ | HLS burst optimization | libc++ |
 | report_adders.v | Verilog | Arithmetic logic design | Yosys |
 | report_adders.ys | Script | Yosys synthesis script | Yosys |
+| dff_infer.v | Verilog | `always` register inference (16 FFs) | Yosys |
+| dff_infer_keep.v | Verilog | Same RTL with `(* keep *)` -> 16 FFs kept | Yosys |
+| dff_infer.ys | Script | Flip-flop count at 5 synthesis stages | Yosys |
 | sum_halves/sum_halves.cpp | C (HLS) | Vitis HLS example | Vitis HLS |
 
 ---
